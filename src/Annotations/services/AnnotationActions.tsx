@@ -36,6 +36,12 @@ const useHandleSync = (getHierarchyName: any) => {
       params.leafNumber = leaf.leafNumber;
       //params.leafWidths = leaf.leafWidths;
 
+      if (DevFlags.isEnabled("useLeafMatching")) {
+        params.defoMode = "match";
+      } else {
+        params.defoMode = "area";
+      }
+
       if (DevFlags.isEnabled("altOriginalArea")){
         params.directArea = leaf.directArea;
         params.maxLength = leaf.maxLength;
@@ -113,6 +119,12 @@ const useHandleSync = (getHierarchyName: any) => {
         params.name = getHierarchyName(leaf.id, "leaf", "leaf");
         params.length = leaf.length;
         params.leafNumber = leaf.leafNumber;
+
+        if (DevFlags.isEnabled("useLeafMatching")) {
+          params.defoMode = "match";
+        } else {
+          params.defoMode = "area";
+        }
   
         if (DevFlags.isEnabled("altOriginalArea")){
           params.directArea = leaf.directArea;

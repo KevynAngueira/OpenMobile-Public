@@ -2,6 +2,7 @@
 import { isDevMode } from "../../native/BuildConfigBridge";
 
 type DevFlagsType = {
+  useLeafMatching: boolean;
   useDevStorage: boolean;
   bypassVideoValidation: boolean;
   altOriginalArea: boolean;
@@ -10,6 +11,7 @@ type DevFlagsType = {
 };
 
 const flags: DevFlagsType = {
+  useLeafMatching: true,
   useDevStorage: false,
   bypassVideoValidation: false,
   altOriginalArea: false,
