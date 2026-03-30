@@ -1,6 +1,6 @@
 // DevServerConfig.ts
 
-const DEFAULT_IP = "149.165.174.119";
+const DEFAULT_IP = "149.165.170.208";
 const DEFAULT_PORT = "5000";
 
 let serverIP = DEFAULT_IP;
