@@ -55,17 +55,18 @@ const LeafAnnotationList = (props: LeafAnnotationListProps) => {
                   annotation={leaf}
                   entry={syncEntry}
                 />
-
-              <TouchableOpacity
-                  onPress={() => leafCallbacks.onToggleHealthy(leaf)}
-                  style={styles.healthyToggle}
-                >
-                  <Ionicons
-                    name={leaf.isHealthy ? "check-circle" : "radio-button-unchecked"}
-                    size={22}
-                    color={leaf.isHealthy ? "#4CAF50" : "#999"}
-                  />
+              {DevFlags.isEnabled("toggleHealthy") && 
+                <TouchableOpacity
+                    onPress={() => leafCallbacks.onToggleHealthy(leaf)}
+                    style={styles.healthyToggle}
+                  >
+                    <Ionicons
+                      name={leaf.isHealthy ? "check-circle" : "radio-button-unchecked"}
+                      size={22}
+                      color={leaf.isHealthy ? "#4CAF50" : "#999"}
+                    />
                 </TouchableOpacity>
+              }
             </TouchableOpacity>
 
             {expandedAnnotation?.id === leaf.id && (
@@ -246,6 +247,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#4CAF50',
   },
+  
   annotationTitle: {
     fontSize: 18,
     flex: 1,
