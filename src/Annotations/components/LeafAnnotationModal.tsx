@@ -25,6 +25,7 @@ const EMPTY_LEAF: LeafAnnotation = {
   maxLength: "",
   maxWidth: "",
   
+  isHealthy: false,
   parentPlant: "",
 };
 

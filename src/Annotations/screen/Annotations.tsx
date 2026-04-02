@@ -147,6 +147,16 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
     return plantId;
   };
 
+  // Toggles the isHealthy param
+  const handleToggleHealthy = (leaf: LeafAnnotation) => {
+    const updatedLeaf = {
+      ...leaf,
+      isHealthy: !leaf.isHealthy
+    };
+  
+    updateLeaf(setLeafAnnotations, updatedLeaf);
+  };
+
   // Edits a plant annotation
   const handleEditPlantAnnotation = (plant: PlantAnnotation | null) => {
    
@@ -244,6 +254,7 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
     onAttachVideo: handleAttachVideo,
     onEditButton: handleEditLeafAnnotation,
     onDeleteAnnotation: handleDeleteLeafAnnotation,
+    onToggleHealthy: handleToggleHealthy,
     getSyncEntry: videoToSync,
     getName: (leafId) => getHierarchyName(leafId, "leaf", viewMode),
     resetEntry: (leaf) => resetEntry(leaf, removeSyncEntry),

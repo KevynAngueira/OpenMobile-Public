@@ -21,7 +21,7 @@ export interface LeafAnnotation {
   maxLength: string;
   maxWidth: string;
 
-  isHealthy: string;
+  isHealthy: boolean;
 
   parentPlant: string;
 }
@@ -48,6 +48,7 @@ export interface LeafCallbacks {
   onAttachVideo: (leaf: LeafAnnotation) => void;
   onEditButton: (leaf: LeafAnnotation | null, plantId?: string) => void;
   onDeleteAnnotation: (leaf: LeafAnnotation) => void;
+  onToggleHealthy: (leaf: LeafAnnotation) => void;
   getSyncEntry: (videoPath: string) => SyncEntry;
   getName: (leafId: string | null) => string;
   resetEntry: (leaf: LeafAnnotation) => void;

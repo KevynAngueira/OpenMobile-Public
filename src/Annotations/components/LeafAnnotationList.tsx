@@ -55,6 +55,17 @@ const LeafAnnotationList = (props: LeafAnnotationListProps) => {
                   annotation={leaf}
                   entry={syncEntry}
                 />
+
+              <TouchableOpacity
+                  onPress={() => leafCallbacks.onToggleHealthy(leaf)}
+                  style={styles.healthyToggle}
+                >
+                  <Ionicons
+                    name={leaf.isHealthy ? "check-circle" : "radio-button-unchecked"}
+                    size={22}
+                    color={leaf.isHealthy ? "#4CAF50" : "#999"}
+                  />
+                </TouchableOpacity>
             </TouchableOpacity>
 
             {expandedAnnotation?.id === leaf.id && (
@@ -401,6 +412,12 @@ const styles = StyleSheet.create({
     flex: 1,
     color: "#222",
     fontSize: 18,
+  },
+
+  //isHealthy toggle
+  healthyToggle: {
+    marginLeft: 8,
+    padding: 4,
   },
 });
 
