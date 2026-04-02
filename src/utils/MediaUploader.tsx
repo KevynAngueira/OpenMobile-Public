@@ -4,6 +4,7 @@ import { apiFetch } from "../network/ApiFetch";
 interface MediaUploadItem {
   path: String;
   params?: Record<string, any>;
+  leafConfig?: Record<string, any>;
 }
 
 type uploadType = 'image' | 'video';
@@ -17,7 +18,7 @@ export const sendMedia = async (
   const responses: {path: string; success: boolean; data?: any; error?: any}[] = [];
 
   for (const item of mediaItems) {
-    const { path, params ={} } = item;
+    const { path, params ={}, leafConfig ={} } = item;
     const fileName = path.split('/').pop(); 
 
     try {
@@ -34,11 +35,13 @@ export const sendMedia = async (
         formData.append('params', JSON.stringify(params));
       }
 
-      response = await apiFetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'multipart/form-data' },
-        body: formData,
-      });
+      response = await apiFetch(
+        endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'multipart/form-data' },
+          body: formData,
+        }, leafConfig
+      );
 
       const result = await response.json();
       //console.log(`${type} upload response:`, result);
@@ -61,20 +64,22 @@ export const sendParams = async (
   const responses: {path: string; success: boolean; data?: any; error?: any}[] = [];
 
   for (const item of mediaItems) {
-    const { path, params ={} } = item;
+    const { path, params ={}, leafConfig ={} } = item;
     const fileName = path.split('/').pop(); 
 
     try {
       let response;
 
-      response = await apiFetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename: fileName,
-          params: params,
-        }),
-      });
+      response = await apiFetch(
+        endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: fileName,
+            params: params,
+          }), 
+        }, leafConfig
+      );
 
       const result = await response.json();
       //console.log('Param upload response:', result);

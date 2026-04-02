@@ -21,6 +21,8 @@ export interface LeafAnnotation {
   maxLength: string;
   maxWidth: string;
 
+  isHealthy: string;
+
   parentPlant: string;
 }
 

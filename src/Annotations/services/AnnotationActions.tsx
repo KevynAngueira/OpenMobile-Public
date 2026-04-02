@@ -29,18 +29,16 @@ const useHandleSync = (getHierarchyName: any) => {
       isLeafDetailsValid(leaf.length, leaf.leafNumber, leaf.directArea, leaf.maxLength, leaf.maxWidth)
     )
     .map((leaf) => {
-      const params: any = {};
+      const leafConfig: any = {
+        "X-Leaf-ID": leaf.id,
+        "X-Leaf-Name": getHierarchyName(leaf.id, "leaf", "leaf"),
+        "X-Is-Healthy": leaf.isHealthy || false, 
+      };
 
-      params.name = getHierarchyName(leaf.id, "leaf", "leaf");
-      params.length = leaf.length;
-      params.leafNumber = leaf.leafNumber;
-      //params.leafWidths = leaf.leafWidths;
-
-      if (DevFlags.isEnabled("useLeafMatching")) {
-        params.defoMode = "match";
-      } else {
-        params.defoMode = "area";
-      }
+      const params: any = {
+        length: leaf.length,
+        leafNumber: leaf.leafNumber,
+      };
 
       if (DevFlags.isEnabled("altOriginalArea")){
         params.directArea = leaf.directArea;
@@ -54,7 +52,8 @@ const useHandleSync = (getHierarchyName: any) => {
 
       return {
         path: leaf.video,
-        params
+        params,
+        leafConfig
       };
     });
    
@@ -104,27 +103,20 @@ const useHandleSync = (getHierarchyName: any) => {
     const entriesToSend = plantLeaves
       .filter((leaf) =>
         leaf.video &&
-        isLeafDetailsValid(
-          leaf.length,
-          leaf.leafNumber,
-          leaf.directArea,
-          leaf.maxLength,
-          leaf.maxWidth
-        )
+        isLeafDetailsValid(leaf.length, leaf.leafNumber, leaf.directArea, leaf.maxLength, leaf.maxWidth)
       )
       .map((leaf) => {
   
-        const params: any = {};
+        const leafConfig: any = {
+          "X-Leaf-ID": leaf.id,
+          "X-Leaf-Name": getHierarchyName(leaf.id, "leaf", "leaf"),
+          "X-Is-Healthy": leaf.isHealthy || false, 
+        };
   
-        params.name = getHierarchyName(leaf.id, "leaf", "leaf");
-        params.length = leaf.length;
-        params.leafNumber = leaf.leafNumber;
-
-        if (DevFlags.isEnabled("useLeafMatching")) {
-          params.defoMode = "match";
-        } else {
-          params.defoMode = "area";
-        }
+        const params: any = {
+          length: leaf.length,
+          leafNumber: leaf.leafNumber,
+        };
   
         if (DevFlags.isEnabled("altOriginalArea")){
           params.directArea = leaf.directArea;
@@ -138,10 +130,11 @@ const useHandleSync = (getHierarchyName: any) => {
   
         return {
           path: leaf.video,
-          params
+          params,
+          leafConfig
         };
       });
-  
+
     if (entriesToSend.length === 0) {
       setSyncResult(`No valid leaves to sync for plant ${plantId}`);
       return;

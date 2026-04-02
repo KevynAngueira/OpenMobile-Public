@@ -3,6 +3,7 @@ export interface SyncEntry {
   id: string;
   videoPath: string;
   params?: Record<string, any>;
+  leafConfig?: Record<string, any>;
 
   videoUploadStatus: 'new' | 'uploading' | 'uploaded' | 'failed';
   paramUploadStatus: 'new' | 'uploading' | 'uploaded' | 'failed';

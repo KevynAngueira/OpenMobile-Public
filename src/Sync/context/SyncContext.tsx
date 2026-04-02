@@ -14,7 +14,11 @@ interface SyncContextType {
   updateSyncEntry: (id: string, updates: Partial<SyncEntry>) => void;
   removeSyncEntry: (id: string) => Promise<void>;
   removeAllSyncEntry: () => Promise<void>;
-  syncAllPending: () => Promise<void>;
+  syncAllPending: (
+    serverURL: string, 
+    mediaItems: {path: string; params?: Record<string, any>, leafConfigs?: Record<string, any>}[], 
+    setSyncResult: (message: string) => void
+  ) => Promise<void>;
 }
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
@@ -69,7 +73,8 @@ export const SyncProvider: React.FC = ({ children }) => {
   function atomicAddEntry(
     entries: SyncEntry[],
     videoPath: string,
-    params: Record<string, any>
+    params: Record<string, any>,
+    leafConfig: Record<string, any>
   ): {allEntries: SyncEntry[], newEntry: SyncEntry| null} {
     
     const id = videoPath.split('/').pop();
@@ -80,6 +85,7 @@ export const SyncProvider: React.FC = ({ children }) => {
       id,
       videoPath,
       params,
+      leafConfig,
       videoUploadStatus: 'new',
       paramUploadStatus: 'new',
       inferenceStatus: 'new',
@@ -122,6 +128,15 @@ export const SyncProvider: React.FC = ({ children }) => {
         newEntry.inferenceStatus = 'new';
         newEntry.inferenceResponse = undefined;
       }
+
+      //If leafConfig changed
+      if (updates.leafConfig && !_.isEqual(updates.leafConfig, entry.leafConfig)) {
+        changed = true;
+        newEntry.paramUploadStatus = 'new';
+        newEntry.paramUploadResponse = undefined;
+        newEntry.inferenceStatus = 'new';
+        newEntry.inferenceResponse = undefined;
+      }
   
       return newEntry;
     });
@@ -150,16 +165,17 @@ export const SyncProvider: React.FC = ({ children }) => {
 
   const addSyncEntry = async (
     videoPath: string,
-    params: Record<string, any>
+    params: Record<string, any>,
+    leafConfig: Record<string, any>
   ) => {
-    setSyncEntries((prev) => atomicAddEntry(prev, videoPath, params).allEntries);
+    setSyncEntries((prev) => atomicAddEntry(prev, videoPath, params, leafConfig).allEntries);
   };
   
   const updateSyncEntry = async (
     videoPath: string,
-    params: Record<string, any>
+    updates: Record<string, any>,
   ) => {
-    setSyncEntries((prev) => atomicUpdateEntry(prev, videoPath, params).allEntries);
+    setSyncEntries((prev) => atomicUpdateEntry(prev, videoPath, updates).allEntries);
   };
 
   const removeSyncEntry = async (
@@ -204,6 +220,7 @@ export const SyncProvider: React.FC = ({ children }) => {
         [{
           path: entry.videoPath,
           params: entry.params,
+          leafConfig: entry.leafConfig
         }],
         `${serverURL}/send/video`
       );
@@ -240,6 +257,7 @@ export const SyncProvider: React.FC = ({ children }) => {
         [{
           path: entry.videoPath,
           params: entry.params,
+          leafConfig: entry.leafConfig
         }],
         `${serverURL}/send/params`
       );
@@ -401,7 +419,7 @@ export const SyncProvider: React.FC = ({ children }) => {
   
   const syncAllPending = async (
     serverURL: string,
-    mediaItems: {path: string; params?: Record<string, any>}[], 
+    mediaItems: {path: string; params?: Record<string, any>, leafConfig?: Record<string, any>}[], 
     setSyncResult: (message: string) => void
   ) => {
     let updatedEntries = ([...(syncEntries || [])]).filter(Boolean);
@@ -423,20 +441,21 @@ export const SyncProvider: React.FC = ({ children }) => {
       const existingEntry = syncEntries.find((entry) => entry.id === id);
 
       if (!existingEntry) {
-        const {allEntries, newEntry} = atomicAddEntry(updatedEntries, item.path, item.params || {});
+        const {allEntries, newEntry} = atomicAddEntry(updatedEntries, item.path, item.params || {}, item.leafConfig || {});
         updatedEntries = allEntries;
         if (newEntry) {
-          uploadList.add(id)
+          uploadList.add(id!)
           console.log(`NEW ENTRY ${id}`);
         };
         console.log(`Added new sync entry: ${id}`);
       } else {
         const {allEntries, updatedEntry, changed} = atomicUpdateEntry(
           updatedEntries,
-          id, 
+          id!, 
           {
             videoPath: item.path,
             params: item.params,
+            leafConfig: item.leafConfig
           }
         );
         
@@ -444,10 +463,10 @@ export const SyncProvider: React.FC = ({ children }) => {
         if (updatedEntry){
           if (changed) {
             console.log(`UPDATED ENTRY ${id}`);
-            uploadList.add(id);
+            uploadList.add(id!);
           } else {
             console.log(`NO UPDATES ENTRY ${id}`);
-            inferenceList.add(id);
+            inferenceList.add(id!);
           }
         }
         console.log(`Updated sync entry: ${id}`);
