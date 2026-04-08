@@ -7,6 +7,7 @@ import { sendMedia, sendParams } from '../../utils/MediaUploader';
 import { SyncEntry } from '../../types/SyncTypes';
 import { server } from '../../../metro.config';
 import { read } from 'react-native-fs';
+import { apiFetch } from '../../network/ApiFetch';
 
 interface SyncContextType {
   syncEntries: SyncEntry[];
@@ -336,7 +337,13 @@ export const SyncProvider: React.FC = ({ children }) => {
     
     try {
       const fileNameWithoutExtension = entry.id.replace(/\.[^/.]+$/, '');
-      const inferenceResponse = await fetch(`${serverURL}/inference/${fileNameWithoutExtension}`);
+      const inferenceResponse = await apiFetch(
+        `${serverURL}/inference/${fileNameWithoutExtension}`,
+        {
+          method: 'GET',
+        },
+        entry.leafConfig
+      );
       const inferenceJson = await inferenceResponse.json();     
 
       entry.inferenceResponse = inferenceJson;
