@@ -10,6 +10,7 @@ import DevExtractorSection from '../components/DevExtractorSection';
 import DevFlagsSection from '../components/DevFlagsSection';
 import DevServerSection from '../components/DevServerSection';
 import DevResetSection from '../components/DevResetSection';
+import DevVisualizeSection from '../components/DevVisualizeSection';
 
 export default function DevPanel() {
   if (!canUseDevFlags) return null;
@@ -19,6 +20,7 @@ export default function DevPanel() {
       <Text style={styles.header}>Developer Panel</Text>
 
       <DevServerSection/>
+      <DevVisualizeSection/>
       <DevResetSection/>
       <DevFlagsSection/>
       <DevExtractorSection/>
