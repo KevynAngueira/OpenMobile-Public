@@ -13,7 +13,57 @@ const useHandleSync = (getHierarchyName: any) => {
   const { syncAllPending } = useSync();
   const { syncAllManifest } = useManifestSync();
   
+  // ------------------------------------------
+  //      ---- Helper Functions ----
+  // ------------------------------------------
+
+  const getValidLeaves = (leaves: LeafAnnotation[]) => {
+    return leaves.filter(
+      (leaf) =>
+        leaf.video &&
+        isLeafDetailsValid(
+          leaf.length,
+          leaf.leafNumber,
+          leaf.directArea,
+          leaf.maxLength,
+          leaf.maxWidth
+        )
+    );
+  };
+
+  const buildSyncEntry = (leaf: LeafAnnotation, getHierarchyName: any) => {
+    const leafConfig: any = {
+      "X-Leaf-ID": leaf.id,
+      "X-Leaf-Name": getHierarchyName(leaf.id, "leaf", "leaf"),
+      "X-Is-Healthy": leaf.isHealthy || false,
+    };
   
+    const params: any = {
+      length: leaf.length,
+      leafNumber: leaf.leafNumber,
+    };
+  
+    if (DevFlags.isEnabled("altOriginalArea")) {
+      params.directArea = leaf.directArea;
+      params.maxLength = leaf.maxLength;
+      params.maxWidth = leaf.maxWidth;
+    } else {
+      params.directArea = "";
+      params.maxLength = "";
+      params.maxWidth = "";
+    }
+  
+    return {
+      path: leaf.video,
+      params,
+      leafConfig,
+    };
+  };
+  
+  // ------------------------------------------
+  //         ---- Handle Sync ----
+  // ------------------------------------------
+
   const handleSync = async (
     fieldAnnotations: FieldAnnotation[],
     plantAnnotations: PlantAnnotation[],
@@ -21,60 +71,34 @@ const useHandleSync = (getHierarchyName: any) => {
     setSyncResult: (message: string) => void
   ) => {
 
-    let serverURL = DevServerConfig.getBaseURL(); 
+    const serverURL = DevServerConfig.getBaseURL();
 
-    const entriesToSend = leafAnnotations
-    .filter((leaf) =>
-      leaf.video &&
-      isLeafDetailsValid(leaf.length, leaf.leafNumber, leaf.directArea, leaf.maxLength, leaf.maxWidth)
-    )
-    .map((leaf) => {
-      const leafConfig: any = {
-        "X-Leaf-ID": leaf.id,
-        "X-Leaf-Name": getHierarchyName(leaf.id, "leaf", "leaf"),
-        "X-Is-Healthy": leaf.isHealthy || false, 
-      };
-
-      const params: any = {
-        length: leaf.length,
-        leafNumber: leaf.leafNumber,
-      };
-
-      if (DevFlags.isEnabled("altOriginalArea")){
-        params.directArea = leaf.directArea;
-        params.maxLength = leaf.maxLength;
-        params.maxWidth = leaf.maxWidth;
-      } else {
-        params.directArea = "";
-        params.maxLength = "";
-        params.maxWidth = "";
-      }
-
-      return {
-        path: leaf.video,
-        params,
-        leafConfig
-      };
-    });
-   
-    // Run Sync Inference
+    const validLeaves = getValidLeaves(leafAnnotations);
+  
+    const entriesToSend = validLeaves.map(leaf =>
+      buildSyncEntry(leaf, getHierarchyName)
+    );
+  
     try {
       await syncAllPending(serverURL, entriesToSend, setSyncResult);
     } catch (error: any) {
-      console.error('Inference Sync error:', error);
+      console.error("Inference Sync error:", error);
       setSyncResult("Inference Sync Failed: " + error.message);
-      setTimeout(() => setSyncResult(null), 3000);
     }
-
-    // Run Sync Manifests
+  
     try {
-      await syncAllManifest(serverURL, fieldAnnotations, plantAnnotations, leafAnnotations);
+      await syncAllManifest(
+        serverURL,
+        fieldAnnotations,
+        plantAnnotations,
+        leafAnnotations
+      );
     } catch (error: any) {
       console.error("Manifest Sync error:", error);
       setSyncResult("Manifest Sync Failed: " + error.message);
-      setTimeout(() => setSyncResult(null), 3000);
     }
   };
+
 
   const handleSyncField = async (
     fieldId: string,
@@ -83,9 +107,8 @@ const useHandleSync = (getHierarchyName: any) => {
     leafAnnotations: LeafAnnotation[],
     setSyncResult: (message: string) => void
   ) => {
-  
     const serverURL = DevServerConfig.getBaseURL();
-  
+
     const field = fieldAnnotations.find(f => f.id === fieldId);
   
     if (!field) {
@@ -93,76 +116,30 @@ const useHandleSync = (getHierarchyName: any) => {
       return;
     }
   
-    // Get all plants belonging to this field
-    const plantIdSet = new Set(field.childPlants);
-  
-    const fieldPlants = plantAnnotations.filter(
-      plant => plantIdSet.has(plant.id)
+    const fieldPlants = plantAnnotations.filter(p =>
+      field.childPlants.includes(p.id)
     );
   
-    // Collect all leaf IDs from those plants
-    const leafIdSet = new Set(
-      fieldPlants.flatMap(plant => plant.childLeaves)
+    const leafIds = fieldPlants.flatMap(p => p.childLeaves);
+  
+    const fieldLeaves = leafAnnotations.filter(l =>
+      leafIds.includes(l.id)
     );
   
-    const fieldLeaves = leafAnnotations.filter(
-      leaf => leafIdSet.has(leaf.id)
+    const validLeaves = getValidLeaves(fieldLeaves);
+  
+    const entriesToSend = validLeaves.map(leaf =>
+      buildSyncEntry(leaf, getHierarchyName)
     );
-  
-    const entriesToSend = fieldLeaves
-      .filter(
-        (leaf) =>
-          leaf.video &&
-          isLeafDetailsValid(
-            leaf.length,
-            leaf.leafNumber,
-            leaf.directArea,
-            leaf.maxLength,
-            leaf.maxWidth
-          )
-      )
-      .map((leaf) => {
-        const leafConfig: any = {
-          "X-Leaf-ID": leaf.id,
-          "X-Leaf-Name": getHierarchyName(leaf.id, "leaf", "leaf"),
-          "X-Is-Healthy": leaf.isHealthy || false,
-        };
-  
-        const params: any = {
-          length: leaf.length,
-          leafNumber: leaf.leafNumber,
-        };
-  
-        if (DevFlags.isEnabled("altOriginalArea")) {
-          params.directArea = leaf.directArea;
-          params.maxLength = leaf.maxLength;
-          params.maxWidth = leaf.maxWidth;
-        } else {
-          params.directArea = "";
-          params.maxLength = "";
-          params.maxWidth = "";
-        }
-  
-        return {
-          path: leaf.video,
-          params,
-          leafConfig,
-        };
-      });
-  
-    if (entriesToSend.length === 0) {
-      setSyncResult(`No valid leaves to sync for field ${field.name}`);
-      return;
-    }
   
     try {
       await syncAllPending(serverURL, entriesToSend, setSyncResult);
     } catch (error: any) {
       console.error("Field Sync error:", error);
       setSyncResult("Field Sync Failed: " + error.message);
-      setTimeout(() => setSyncResult(null), 3000);
     }
   };
+
 
   const handleSyncPlant = async (
     plantId: string,
@@ -171,9 +148,8 @@ const useHandleSync = (getHierarchyName: any) => {
     leafAnnotations: LeafAnnotation[],
     setSyncResult: (message: string) => void
   ) => {
-  
     const serverURL = DevServerConfig.getBaseURL();
-  
+
     const plant = plantAnnotations.find(p => p.id === plantId);
   
     if (!plant) {
@@ -181,62 +157,25 @@ const useHandleSync = (getHierarchyName: any) => {
       return;
     }
   
-    const leafIdSet = new Set(plant.childLeaves);
-  
-    const plantLeaves = leafAnnotations.filter(
-      leaf => leafIdSet.has(leaf.id)
+    const plantLeaves = leafAnnotations.filter(leaf =>
+      plant.childLeaves.includes(leaf.id)
     );
   
-    const entriesToSend = plantLeaves
-      .filter((leaf) =>
-        leaf.video &&
-        isLeafDetailsValid(leaf.length, leaf.leafNumber, leaf.directArea, leaf.maxLength, leaf.maxWidth)
-      )
-      .map((leaf) => {
+    const validLeaves = getValidLeaves(plantLeaves);
   
-        const leafConfig: any = {
-          "X-Leaf-ID": leaf.id,
-          "X-Leaf-Name": getHierarchyName(leaf.id, "leaf", "leaf"),
-          "X-Is-Healthy": leaf.isHealthy || false, 
-        };
-  
-        const params: any = {
-          length: leaf.length,
-          leafNumber: leaf.leafNumber,
-        };
-  
-        if (DevFlags.isEnabled("altOriginalArea")){
-          params.directArea = leaf.directArea;
-          params.maxLength = leaf.maxLength;
-          params.maxWidth = leaf.maxWidth;
-        } else {
-          params.directArea = "";
-          params.maxLength = "";
-          params.maxWidth = "";
-        }
-  
-        return {
-          path: leaf.video,
-          params,
-          leafConfig
-        };
-      });
-
-    if (entriesToSend.length === 0) {
-      setSyncResult(`No valid leaves to sync for plant ${plantId}`);
-      return;
-    }
+    const entriesToSend = validLeaves.map(leaf =>
+      buildSyncEntry(leaf, getHierarchyName)
+    );
   
     try {
       await syncAllPending(serverURL, entriesToSend, setSyncResult);
     } catch (error: any) {
-      console.error('Inference Sync error:', error);
+      console.error("Inference Sync error:", error);
       setSyncResult("Inference Sync Failed: " + error.message);
-      setTimeout(() => setSyncResult(null), 3000);
     }
   };
   
-
+  
   return { handleSync, handleSyncField, handleSyncPlant };
 }
 
