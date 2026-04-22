@@ -89,7 +89,7 @@ export const SyncProvider: React.FC = ({ children }) => {
       videoPath,
       params,
       leafConfig,
-      videoUploadStatus: 'new',
+      videoUploadStatus: 'uploading',
       paramUploadStatus: 'new',
       inferenceStatus: 'new',
     };
@@ -117,7 +117,7 @@ export const SyncProvider: React.FC = ({ children }) => {
       if (updates.videoPath && updates.videoPath !== entry.videoPath) {
         changed = true;
         newEntry.id = updates.videoPath.split('/').pop() || entry.id;
-        newEntry.videoUploadStatus = 'new';
+        newEntry.videoUploadStatus = 'uploading';
         newEntry.videoUploadResponse = undefined;
         newEntry.inferenceStatus = 'new';
         newEntry.inferenceResponse = undefined;
@@ -253,7 +253,7 @@ export const SyncProvider: React.FC = ({ children }) => {
     console.log('Param Upload Start: ', entry.videoPath);
     setSyncResult(`Param Upload Start: ${entry.videoPath}`);
     setTimeout(() => setSyncResult(null), 3000);
-    entry.paramUploadStatus = 'uploading';
+    //entry.paramUploadStatus = 'uploading';
 
     try {
       const uploadResponse = await sendParams(
