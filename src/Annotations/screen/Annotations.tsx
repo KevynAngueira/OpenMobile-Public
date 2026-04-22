@@ -28,7 +28,7 @@ import useHandleSync from '../services/AnnotationActions';
 import { useAnnotationMaps } from '../../hooks/useAnnotationMaps';
 import { useSyncMaps } from '../../hooks/useSyncMaps';
 
-import { canUseDevFlags } from '../../DevConsole/configs/DevFlagsConfig';
+import { canUseDevFlags, DevFlags } from '../../DevConsole/configs/DevFlagsConfig';
 import { resetEntry } from '../../network/ResetEntry';
 
 interface AnnotationsProps {
@@ -56,6 +56,8 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
   const [viewMode, setViewMode] = useState<'field' | 'plant' | 'leaf'>('field');
 
   const [selectedVideoPath, setSelectedVideoPath] = useState<string | null>(null);
+
+  const [devFlags, setDevFlags] = useState(DevFlags.get());
 
   const plantsForSelectedField = React.useMemo(() => {
     if (!selectedFieldAnnotation) return [];
@@ -249,6 +251,15 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
     navigation.setParams({ selectedVideo: undefined });
   }, [route.params?.selectedVideo]);
 
+  useEffect(() => {
+    const unsubscribe = DevFlags.subscribe((updatedFlags) => {
+      setDevFlags(updatedFlags);
+    });
+
+    return unsubscribe;
+  }, []);
+
+
   const leafCallbacks : LeafCallbacks = {
     syncEntries: syncEntries,
     onAttachVideo: handleAttachVideo,
@@ -422,14 +433,21 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
         )}
 
         {/* Sync Button */}
-        {/*
-        <TouchableOpacity
-          style={styles.syncButton}
-          onPress={() => handleSync(fieldAnnotations, plantAnnotations, leafAnnotations, setSyncResult)}
-        >
-          <Text style={styles.syncButtonText}>Sync</Text>
-        </TouchableOpacity>
-        */}
+        {!devFlags.allowIndividualSync && (
+          <TouchableOpacity
+            style={styles.syncButton}
+            onPress={() =>
+              handleSync(
+                fieldAnnotations,
+                plantAnnotations,
+                leafAnnotations,
+                setSyncResult
+              )
+            }
+          >
+            <Text style={styles.syncButtonText}>Sync</Text>
+          </TouchableOpacity>
+        )}
       </View>
       
     </SafeAreaView>

@@ -19,6 +19,15 @@ interface PlantAnnotationListProps {
 const PlantAnnotationList = (props : PlantAnnotationListProps ) => {
   const { plantAnnotations, plantCallbacks, leafAnnotations, leafCallbacks } = props;
   const [expandedAnnotation, setExpandedAnnotation] = React.useState<any>(null);
+  const [devFlags, setDevFlags] = React.useState(DevFlags.get());
+
+  React.useEffect(() => {
+    const unsubscribe = DevFlags.subscribe((updatedFlags) => {
+      setDevFlags(updatedFlags);
+    });
+
+    return unsubscribe;
+  }, []);
 
   const handleToggleDropdown = (annotation: any) => {
     setExpandedAnnotation(expandedAnnotation?.id === annotation.id ? null : annotation);
@@ -68,7 +77,7 @@ const PlantAnnotationList = (props : PlantAnnotationListProps ) => {
                   leafCallbacks={leafCallbacks}
                 />
 
-                { DevFlags.isEnabled("allowIndividualSync") && (
+                { devFlags.allowIndividualSync && (
                   <TouchableOpacity
                     style={styles.syncButton}
                     onPress={() => plantCallbacks.onSyncPlant(plant)}
