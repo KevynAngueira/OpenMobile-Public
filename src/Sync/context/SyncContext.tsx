@@ -8,6 +8,8 @@ import { SyncEntry } from '../../types/SyncTypes';
 import { server } from '../../../metro.config';
 import { read } from 'react-native-fs';
 import { apiFetch } from '../../network/ApiFetch';
+import { processWithConcurrency } from '../../utils/AsyncQueue';
+
 
 interface SyncContextType {
   syncEntries: SyncEntry[];
@@ -287,11 +289,10 @@ export const SyncProvider: React.FC = ({ children }) => {
     toUploadIds: Set<string>,
     setSyncResult: (message: string) => void
   ) => {
-    let updatedEntries = [...entries];
 
-    for (const entry of entries) {
-      if (!toUploadIds.has(entry.id)) continue;
-      
+    const uploadTargets = entries.filter(e => toUploadIds.has(e.id));
+
+    await processWithConcurrency(uploadTargets, async (entry) => {
       const videoAttached = entry.videoUploadStatus === 'uploaded';
       const paramsAttached = entry.paramUploadStatus === 'uploaded';
 
@@ -299,26 +300,23 @@ export const SyncProvider: React.FC = ({ children }) => {
         console.warn(`Warning: Skipping upload: ${entry.id}`);
         setSyncResult(`Warning: skipping upload ${entry.id}, video and params previously uploaded`);
         setTimeout(() => setSyncResult(null), 3000);
-        continue;
+        return;
       }
 
       let updated = { ...entry };
 
       if (!videoAttached) {
-        uploadVideo(serverURL, updated, setSyncResult);
-        updated.videoUploadStatus = 'uploading';
+        await uploadVideo(serverURL, updated, setSyncResult);
       }
 
       if (!paramsAttached) {
-        uploadParams(serverURL, updated, setSyncResult);
-        updated.paramUploadStatus = 'uploading';
+        await uploadParams(serverURL, updated, setSyncResult);
       }
+  
+      setSyncEntries(prev => updateEntryById(prev, updated));
+    }, 3);
 
-      updatedEntries = updateEntryById(updatedEntries, updated);
-      setSyncEntries(updatedEntries);
-    }
-
-    return updatedEntries;
+    return entries;
   };
     
   //////////////////////////////////////////// 
@@ -395,29 +393,30 @@ export const SyncProvider: React.FC = ({ children }) => {
     setSyncResult: (message: string) => void
   ) => {
 
-    let updatedEntries = [...entries];
+    const inferTargets = entries.filter(e => toInferIds.has(e.id));
 
-    for (const entry of entries) {
-      if (!toInferIds.has(entry.id)) continue;
+    await processWithConcurrency(inferTargets, async (entry) => {
 
-      const ready = 
+      const ready =
         entry.videoUploadStatus === 'uploaded' &&
         entry.paramUploadStatus === 'uploaded';
-
+  
       if (!ready) {
         console.warn(`Warning: Skipping inference: ${entry.id}`);
         setSyncResult(`Warning: skipping inference ${entry.id}, video or params not uploaded`);
         setTimeout(() => setSyncResult(null), 3000);
-        continue;
-      }
-
-      inference(serverURL, entry, setSyncResult);
-
-      updatedEntries = updateEntryById(updatedEntries, entry);
-      setSyncEntries(updatedEntries);
-    }
-
-    return updatedEntries;
+        return;
+      };
+  
+      let updated = { ...entry };
+  
+      await inference(serverURL, updated, setSyncResult);
+  
+      setSyncEntries(prev => updateEntryById(prev, updated));
+  
+    }, 2); // inference is heavier → lower concurrency
+  
+    return entries;
   };
 
   //////////////////////////////////////////// 

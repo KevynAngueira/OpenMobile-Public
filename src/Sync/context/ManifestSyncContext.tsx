@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { FieldAnnotation, PlantAnnotation, LeafAnnotation } from '../../types/AnnotationTypes';
 import { apiFetch } from '../../network/ApiFetch';
+import { processWithConcurrency } from '../../utils/AsyncQueue';
 
 interface ManifestSyncContextType {
   syncAllManifest: (
@@ -123,15 +124,13 @@ export const ManifestSyncProvider: React.FC<{ children: React.ReactNode }> = ({ 
     plants: PlantAnnotation[],
     leaves: LeafAnnotation[]
   ) {
-    for (const plant of plants) {
+    await processWithConcurrency(plants, async (artifact) => {
       try {
-        const artifact = buildPlantArtifact(plant, leaves);
         await uploadPlantArtifact(serverURL, artifact);
       } catch (err) {
-        console.error(`Plant ${plant.id} failed:`, err);
-        // Continue to next plant
+        console.error(`Plant ${artifact.id} failed:`, err);
       }
-    }
+    }, 3);
   }
 
   async function uploadFieldManifest(
@@ -139,14 +138,14 @@ export const ManifestSyncProvider: React.FC<{ children: React.ReactNode }> = ({ 
     fields: FieldAnnotation[],
     plantArtifacts: PlantArtifact[]
   ) {
-    for (const field of fields) {
+    await processWithConcurrency(fields, async (field) => {
       try {
         const artifact = buildFieldArtifact(field, plantArtifacts);
         await uploadFieldArtifact(serverURL, artifact);
       } catch (err) {
         console.error(`Field ${field.id} failed:`, err);
       }
-    }
+    }, 2);
   }
 
   const syncAllManifest = async (
@@ -160,27 +159,27 @@ export const ManifestSyncProvider: React.FC<{ children: React.ReactNode }> = ({ 
       buildPlantArtifact(plant, leaves)
     );
   
-    // Upload plants first
-    for (const artifact of plantArtifacts) {
+    // ✅ Queue plant uploads
+    await processWithConcurrency(plantArtifacts, async (artifact) => {
       try {
         await uploadPlantArtifact(serverURL, artifact);
       } catch (err) {
         console.error(`Plant ${artifact.id} failed:`, err);
       }
-    }
-  
-    // Then upload fields
-    for (const field of fields) {
+    }, 3);
+
+    // ✅ Queue field uploads (after plants complete)
+    await processWithConcurrency(fields, async (field) => {
       try {
         const artifact = buildFieldArtifact(field, plantArtifacts);
         await uploadFieldArtifact(serverURL, artifact);
       } catch (err) {
         console.error(`Field ${field.id} failed:`, err);
       }
-    }
+    }, 2);
   }
   
-
+  
   return (
     <ManifestSyncContext.Provider value={{ syncAllManifest, lastResult }}>
       {children}
