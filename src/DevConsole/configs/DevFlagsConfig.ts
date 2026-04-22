@@ -5,9 +5,8 @@ type DevFlagsType = {
   toggleHealthy: boolean;
   useDevStorage: boolean;
   bypassVideoValidation: boolean;
-  altOriginalArea: boolean;
   allowResetEntries: boolean;
-  allowIndividualSync: boolean;
+  altOriginalArea: boolean;
 };
 
 type Listener = (flags: DevFlagsType) => void;
@@ -15,11 +14,10 @@ type Listener = (flags: DevFlagsType) => void;
 const flags: DevFlagsType = {
   useLeafMatching: true,
   toggleHealthy: true,
-  useDevStorage: false,
-  bypassVideoValidation: false,
+  useDevStorage: true,
+  bypassVideoValidation: true,
+  allowResetEntries: true,
   altOriginalArea: false,
-  allowResetEntries: false,
-  allowIndividualSync: false,
 };
 
 const listeners = new Set<Listener>();

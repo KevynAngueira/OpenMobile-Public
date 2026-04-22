@@ -8,6 +8,7 @@ import { canUseDevFlags } from '../configs/DevFlagsConfig';
 // Import Sections
 import DevExtractorSection from '../components/DevExtractorSection';
 import DevFlagsSection from '../components/DevFlagsSection';
+import DevOptionsSection from '../components/DevModesSection';
 import DevServerSection from '../components/DevServerSection';
 import DevResetSection from '../components/DevResetSection';
 import DevVisualizeSection from '../components/DevVisualizeSection';
@@ -22,6 +23,7 @@ export default function DevPanel() {
       <DevServerSection/>
       <DevVisualizeSection/>
       <DevResetSection/>
+      <DevOptionsSection/>
       <DevFlagsSection/>
       <DevExtractorSection/>
       

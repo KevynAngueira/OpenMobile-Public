@@ -29,6 +29,7 @@ import { useAnnotationMaps } from '../../hooks/useAnnotationMaps';
 import { useSyncMaps } from '../../hooks/useSyncMaps';
 
 import { canUseDevFlags, DevFlags } from '../../DevConsole/configs/DevFlagsConfig';
+import { DevModes } from '../../DevConsole/configs/DevModesConfig';
 import { resetEntry } from '../../network/ResetEntry';
 
 interface AnnotationsProps {
@@ -50,7 +51,7 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
   const { syncEntries, removeSyncEntry } = useSync();
   const { videoToSync } = useSyncMaps(syncEntries);
 
-  const { handleSync, handleSyncPlant } = useHandleSync(getHierarchyName);
+  const { handleSync, handleSyncField, handleSyncPlant } = useHandleSync(getHierarchyName);
   const [syncResult, setSyncResult] = useState<string | null>(null);
  
   const [viewMode, setViewMode] = useState<'field' | 'plant' | 'leaf'>('field');
@@ -58,6 +59,7 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
   const [selectedVideoPath, setSelectedVideoPath] = useState<string | null>(null);
 
   const [devFlags, setDevFlags] = useState(DevFlags.get());
+  const [devModes, setDevModes] = useState(DevModes.get());
 
   const plantsForSelectedField = React.useMemo(() => {
     if (!selectedFieldAnnotation) return [];
@@ -252,13 +254,22 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
   }, [route.params?.selectedVideo]);
 
   useEffect(() => {
-    const unsubscribe = DevFlags.subscribe((updatedFlags) => {
+    const unsubscribe_flags = DevFlags.subscribe((updatedFlags) => {
       setDevFlags(updatedFlags);
     });
 
-    return unsubscribe;
+    return unsubscribe_flags;
   }, []);
 
+  useEffect(() => {
+    const unsubscribe_modes = DevModes.subscribe((updatedModes) => {
+      setDevModes(updatedModes);
+    });
+
+    return unsubscribe_modes;
+  }, []);
+
+  // Annotation Callback
 
   const leafCallbacks : LeafCallbacks = {
     syncEntries: syncEntries,
@@ -433,7 +444,7 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
         )}
 
         {/* Sync Button */}
-        {!devFlags.allowIndividualSync && (
+        {devModes.syncMode == "all"  && (
           <TouchableOpacity
             style={styles.syncButton}
             onPress={() =>
@@ -445,7 +456,29 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
               )
             }
           >
-            <Text style={styles.syncButtonText}>Sync</Text>
+            <Text style={styles.syncButtonText}>Sync All</Text>
+          </TouchableOpacity>
+        )}
+
+        {devModes.syncMode == "field"  && (
+          <TouchableOpacity
+            style={styles.syncButton}
+            onPress={() => {
+              if (!selectedFieldAnnotation?.id) {
+                setSyncResult("No field selected");
+                return;
+              }
+            
+              handleSyncField(
+                selectedFieldAnnotation.id,
+                fieldAnnotations,
+                plantAnnotations,
+                leafAnnotations,
+                setSyncResult
+              );
+            }}
+          >
+            <Text style={styles.syncButtonText}>Sync Field</Text>
           </TouchableOpacity>
         )}
       </View>

@@ -76,6 +76,93 @@ const useHandleSync = (getHierarchyName: any) => {
     }
   };
 
+  const handleSyncField = async (
+    fieldId: string,
+    fieldAnnotations: FieldAnnotation[],
+    plantAnnotations: PlantAnnotation[],
+    leafAnnotations: LeafAnnotation[],
+    setSyncResult: (message: string) => void
+  ) => {
+  
+    const serverURL = DevServerConfig.getBaseURL();
+  
+    const field = fieldAnnotations.find(f => f.id === fieldId);
+  
+    if (!field) {
+      setSyncResult(`Field not found: ${fieldId}`);
+      return;
+    }
+  
+    // Get all plants belonging to this field
+    const plantIdSet = new Set(field.childPlants);
+  
+    const fieldPlants = plantAnnotations.filter(
+      plant => plantIdSet.has(plant.id)
+    );
+  
+    // Collect all leaf IDs from those plants
+    const leafIdSet = new Set(
+      fieldPlants.flatMap(plant => plant.childLeaves)
+    );
+  
+    const fieldLeaves = leafAnnotations.filter(
+      leaf => leafIdSet.has(leaf.id)
+    );
+  
+    const entriesToSend = fieldLeaves
+      .filter(
+        (leaf) =>
+          leaf.video &&
+          isLeafDetailsValid(
+            leaf.length,
+            leaf.leafNumber,
+            leaf.directArea,
+            leaf.maxLength,
+            leaf.maxWidth
+          )
+      )
+      .map((leaf) => {
+        const leafConfig: any = {
+          "X-Leaf-ID": leaf.id,
+          "X-Leaf-Name": getHierarchyName(leaf.id, "leaf", "leaf"),
+          "X-Is-Healthy": leaf.isHealthy || false,
+        };
+  
+        const params: any = {
+          length: leaf.length,
+          leafNumber: leaf.leafNumber,
+        };
+  
+        if (DevFlags.isEnabled("altOriginalArea")) {
+          params.directArea = leaf.directArea;
+          params.maxLength = leaf.maxLength;
+          params.maxWidth = leaf.maxWidth;
+        } else {
+          params.directArea = "";
+          params.maxLength = "";
+          params.maxWidth = "";
+        }
+  
+        return {
+          path: leaf.video,
+          params,
+          leafConfig,
+        };
+      });
+  
+    if (entriesToSend.length === 0) {
+      setSyncResult(`No valid leaves to sync for field ${field.name}`);
+      return;
+    }
+  
+    try {
+      await syncAllPending(serverURL, entriesToSend, setSyncResult);
+    } catch (error: any) {
+      console.error("Field Sync error:", error);
+      setSyncResult("Field Sync Failed: " + error.message);
+      setTimeout(() => setSyncResult(null), 3000);
+    }
+  };
 
   const handleSyncPlant = async (
     plantId: string,
@@ -150,8 +237,7 @@ const useHandleSync = (getHierarchyName: any) => {
   };
   
 
-  return { handleSync, handleSyncPlant };
+  return { handleSync, handleSyncField, handleSyncPlant };
 }
-
 
 export default useHandleSync;

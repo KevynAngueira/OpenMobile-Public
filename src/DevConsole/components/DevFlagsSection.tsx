@@ -20,7 +20,7 @@ export default function DevFlagsSection() {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Feature Flags</Text>
+      <Text style={styles.sectionTitle}>Configuration Flags</Text>
 
       {DevFlags.getKeys().map((key) => (
         <View style={styles.toggleRow} key={key}>

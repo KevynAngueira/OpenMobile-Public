@@ -7,7 +7,7 @@ import LeafAnnotationList from './LeafAnnotationList';
 import { PlantStatusIndicator } from './PlantStatusIndicator';
 import { LeafAnnotation, PlantAnnotation, LeafCallbacks, PlantCallbacks } from '../../types/AnnotationTypes';
 
-import { DevFlags } from '../../DevConsole/configs/DevFlagsConfig';
+import { DevModes } from '../../DevConsole/configs/DevModesConfig';
 
 interface PlantAnnotationListProps {
   plantAnnotations: PlantAnnotation[];
@@ -19,11 +19,11 @@ interface PlantAnnotationListProps {
 const PlantAnnotationList = (props : PlantAnnotationListProps ) => {
   const { plantAnnotations, plantCallbacks, leafAnnotations, leafCallbacks } = props;
   const [expandedAnnotation, setExpandedAnnotation] = React.useState<any>(null);
-  const [devFlags, setDevFlags] = React.useState(DevFlags.get());
+  const [devModes, setDevModes] = React.useState(DevModes.get());
 
   React.useEffect(() => {
-    const unsubscribe = DevFlags.subscribe((updatedFlags) => {
-      setDevFlags(updatedFlags);
+    const unsubscribe = DevModes.subscribe((updatedModes) => {
+      setDevModes(updatedModes);
     });
 
     return unsubscribe;
@@ -77,7 +77,7 @@ const PlantAnnotationList = (props : PlantAnnotationListProps ) => {
                   leafCallbacks={leafCallbacks}
                 />
 
-                { devFlags.allowIndividualSync && (
+                { devModes.syncMode == "plant" && (
                   <TouchableOpacity
                     style={styles.syncButton}
                     onPress={() => plantCallbacks.onSyncPlant(plant)}
