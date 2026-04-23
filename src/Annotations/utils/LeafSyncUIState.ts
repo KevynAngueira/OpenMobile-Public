@@ -57,6 +57,27 @@ export function getLeafSyncUIState(annotation: LeafAnnotation, entry?: SyncEntry
   return 'ready';
 }
 
+export const LeafSyncSeverity: Record<LeafSyncUIState, number> = {
+  upload_failed: 0,
+  inference_failed: 1,
+  incomplete: 2,
+  ready: 3,
+  uploading: 4,
+  inferring: 5,
+  completed: 6,
+};
+
+export function getWorstSyncState(
+  states: LeafSyncUIState[]
+): LeafSyncUIState {
+  if (states.length === 0) return 'ready';
+
+  return states.reduce((worst, current) => {
+    return LeafSyncSeverity[current] < LeafSyncSeverity[worst]
+      ? current
+      : worst;
+  }, 'completed');
+}
 
 export const LeafSyncUIConfig: Record<
   LeafSyncUIState,

@@ -4,10 +4,11 @@ import { View, ScrollView, Text, StyleSheet, TouchableOpacity } from 'react-nati
 import Ionicons from '@react-native-vector-icons/material-icons';
 import LeafAnnotationList from './LeafAnnotationList';
 
-import { PlantStatusIndicator } from './PlantStatusIndicator';
+import { getPlantSyncDisplayState, PlantStatusIndicator } from './PlantStatusIndicator';
 import { LeafAnnotation, PlantAnnotation, LeafCallbacks, PlantCallbacks } from '../../types/AnnotationTypes';
 
 import { DevModes } from '../../DevConsole/configs/DevModesConfig';
+import { getLeafSyncUIState } from '../utils/LeafSyncUIState';
 
 interface PlantAnnotationListProps {
   plantAnnotations: PlantAnnotation[];
@@ -49,6 +50,12 @@ const PlantAnnotationList = (props : PlantAnnotationListProps ) => {
           
         const leavesForPlant = plantCallbacks.getLeaves(plant.childLeaves);
         const syncEntriesForPlant = leavesForPlant.map(leaf => leafCallbacks.getSyncEntry(leaf.video)).filter(Boolean);
+        
+        const leafSyncMap = leavesForPlant.map((leaf) => ({
+          annotation: leaf,
+          entry: leafCallbacks.getSyncEntry(leaf.video),
+        }));
+        const displayState = getPlantSyncDisplayState(leafSyncMap);
 
         return (
           <View key={plant.id} style={styles.annotationContainer}>
@@ -57,9 +64,7 @@ const PlantAnnotationList = (props : PlantAnnotationListProps ) => {
               style={styles.annotationHeader}
             >
               <Text style={styles.annotationTitle}>{plantCallbacks.getName(plant?.id)}</Text>
-              <PlantStatusIndicator 
-                entries={syncEntriesForPlant}
-              />
+              <PlantStatusIndicator displayState={displayState} />
             </TouchableOpacity>
 
             {expandedAnnotation?.id === plant.id && (

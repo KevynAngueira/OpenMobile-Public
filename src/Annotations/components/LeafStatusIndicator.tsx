@@ -8,17 +8,36 @@ import {
   LeafSyncUIConfig
 } from '../utils/LeafSyncUIState';
 
-export const LeafStatusIndicator = ({ annotation, entry }: { annotation: LeafAnnotation, entry?: SyncEntry }) => {
+
+export const getLeafSyncDisplayState = (
+  annotation: LeafAnnotation,
+  entry?: SyncEntry
+) => {
   const uiState = getLeafSyncUIState(annotation, entry);
   const config = LeafSyncUIConfig[uiState];
 
-  if (uiState === 'completed') {
-    const value =
-      entry?.inferenceResponse?.results?.defoliation ?? 0;
+  const defoliationValue =
+    entry?.inferenceResponse?.results?.defoliation ?? 0;
 
+  return {
+    uiState,
+    config,
+    defoliationValue,
+    isCompleted: uiState === 'completed',
+  };
+};
+
+export const LeafStatusIndicator = ({
+  displayState,
+}: {
+  displayState: ReturnType<typeof getLeafSyncDisplayState>;
+}) => {
+  const { config, isCompleted, defoliationValue } = displayState;
+
+  if (isCompleted) {
     return (
       <Text style={{ fontSize: 16, color: config.color }}>
-        {Math.round(value)}%
+        {Math.round(defoliationValue)}%
       </Text>
     );
   }

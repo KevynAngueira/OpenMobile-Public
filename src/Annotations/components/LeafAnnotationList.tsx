@@ -4,7 +4,7 @@ import { View, ScrollView, Text, StyleSheet, TouchableOpacity } from 'react-nati
 import Ionicons from '@react-native-vector-icons/material-icons';
 import Video from 'react-native-video';
 
-import { LeafStatusIndicator } from './LeafStatusIndicator';
+import { getLeafSyncDisplayState, LeafStatusIndicator } from './LeafStatusIndicator';
 import { getLeafSyncUIState, LeafSyncUIConfig } from '../utils/LeafSyncUIState';
 import { LeafAnnotation, LeafCallbacks } from '../../types/AnnotationTypes';
 import { DevFlags } from '../../DevConsole/configs/DevFlagsConfig'
@@ -40,9 +40,8 @@ const LeafAnnotationList = (props: LeafAnnotationListProps) => {
         .sort((a, b) => Number(a.leafNumber) - Number(b.leafNumber))
         .map((leaf) => {
 
-        const syncEntry = leafCallbacks.getSyncEntry(leaf.video);
-        const uiState = getLeafSyncUIState(leaf, syncEntry);
-        const config = LeafSyncUIConfig[uiState];
+          const syncEntry = leafCallbacks.getSyncEntry(leaf.video);
+          const displayState = getLeafSyncDisplayState(leaf, syncEntry);
         
         return (
           <View key={leaf.id} style={styles.annotationContainer}>
@@ -51,10 +50,8 @@ const LeafAnnotationList = (props: LeafAnnotationListProps) => {
               style={styles.annotationHeader}
             >
               <Text style={styles.annotationTitle}>{leafCallbacks.getName(leaf?.id)}</Text>
-              <LeafStatusIndicator
-                  annotation={leaf}
-                  entry={syncEntry}
-                />
+              <LeafStatusIndicator displayState={displayState}/>
+              
               {DevFlags.isEnabled("toggleHealthy") && 
                 <TouchableOpacity
                     onPress={() => leafCallbacks.onToggleHealthy(leaf)}
