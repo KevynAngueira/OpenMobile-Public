@@ -9,6 +9,7 @@ import {
   LeafSyncSeverity,
   LeafSyncUIState
 } from '../utils/LeafSyncUIState';
+import { getDefoliationValue } from '../utils/DefoliationValues';
 
 type LeafSyncMapEntry = {
   annotation: LeafAnnotation;
@@ -49,7 +50,7 @@ export const getPlantSyncDisplayState = (
       ? completedLeaves.reduce((sum, { entry }) => {
           return (
             sum +
-            (entry?.inferenceResponse?.results?.defoliation ?? 0)
+            getDefoliationValue(entry)
           );
         }, 0) / completedLeaves.length
       : 0;

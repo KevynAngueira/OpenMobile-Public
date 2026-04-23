@@ -178,9 +178,9 @@ const LeafAnnotationList = (props: LeafAnnotationListProps) => {
                         <Text style={styles.tabTitle}>Results</Text>
                         <View style={styles.placeholderContainer}>
                           <Text style={styles.placeholderText}>
-                            {config.label}
+                            {displayState.config.label}
                           </Text>
-                          {config.showResults && syncEntry?.inferenceResponse && (
+                          {displayState.config.showResults && syncEntry?.inferenceResponse && (
                             <Text style={styles.resultValue}>{JSON.stringify(syncEntry.inferenceResponse)}</Text>
                           )}
                         </View>

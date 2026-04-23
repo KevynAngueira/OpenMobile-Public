@@ -7,6 +7,7 @@ import {
   getLeafSyncUIState,
   LeafSyncUIConfig
 } from '../utils/LeafSyncUIState';
+import { getDefoliationValue } from '../utils/DefoliationValues';
 
 
 export const getLeafSyncDisplayState = (
@@ -16,8 +17,7 @@ export const getLeafSyncDisplayState = (
   const uiState = getLeafSyncUIState(annotation, entry);
   const config = LeafSyncUIConfig[uiState];
 
-  const defoliationValue =
-    entry?.inferenceResponse?.results?.defoliation ?? 0;
+  const defoliationValue = getDefoliationValue(entry);
 
   return {
     uiState,

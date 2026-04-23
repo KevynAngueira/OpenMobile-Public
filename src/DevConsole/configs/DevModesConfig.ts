@@ -5,7 +5,7 @@ import { isDevMode } from "../../native/BuildConfigBridge";
 -------------------------- */
 
 export type SyncMode = "all" | "field" | "plant";
-export type DefoMode =  "leaf-matching" | "area-direct" | "area-comp"
+export type DefoMode =  "leaf_matching" | "area_direct" | "area_comp"
 
 type DevModesType = {
   syncMode: SyncMode;
@@ -19,7 +19,7 @@ const modeValues: {
   [K in keyof DevModesType]: DevModesType[K][];
 } = {
   syncMode: ["all", "field", "plant"],
-  defoMode: ["leaf-matching", "area-direct", "area-comp"],
+  defoMode: ["leaf_matching", "area_direct", "area_comp"],
 };
 
 type Listener = (modes: DevModesType) => void;
@@ -29,7 +29,7 @@ type Listener = (modes: DevModesType) => void;
 -------------------------- */
 const modes: DevModesType = {
   syncMode: "field",
-  defoMode: "area-direct",
+  defoMode: "area_direct",
 };
 
 const listeners = new Set<Listener>();
