@@ -1,6 +1,6 @@
 // SyncContext.tsx
 import _ from 'lodash';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { sendMedia, sendParams } from '../../utils/MediaUploader';
@@ -9,7 +9,9 @@ import { server } from '../../../metro.config';
 import { read } from 'react-native-fs';
 import { apiFetch } from '../../network/ApiFetch';
 import { processWithConcurrency } from '../../utils/AsyncQueue';
+import { DevServerConfig } from '../../DevConsole/configs/DevServerConfig';
 
+import { atomicAddEntry, atomicUpdateEntry, atomicRemoveEntry, atomicRemoveDeprecatedEntries } from '../services/SyncContextHandler';
 
 interface SyncContextType {
   syncEntries: SyncEntry[];
@@ -23,6 +25,13 @@ interface SyncContextType {
     setSyncResult: (message: string) => void
   ) => Promise<void>;
 }
+
+type InferenceQueueItem = {
+  id: string;
+  setSyncResult: (message: string) => void;
+};
+
+
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
 
@@ -38,6 +47,14 @@ const SYNC_STORAGE_KEY = '@syncEntries';
 
 export const SyncProvider: React.FC = ({ children }) => {
   const [syncEntries, setSyncEntries] = useState<SyncEntry[]>([]);
+  const inferenceQueueRef = useRef<Map<string, InferenceQueueItem>>(new Map());
+  const [inferenceQueueVersion, setInferenceQueueVersion] = useState(0);
+  const syncEntriesRef = useRef(syncEntries);
+  const serverURL = DevServerConfig.getBaseURL();
+
+  useEffect(() => {
+    syncEntriesRef.current = syncEntries;
+  }, [syncEntries]);
 
   // Load sync entries from AsyncStorage when the app starts
   useEffect(() => {
@@ -68,100 +85,56 @@ export const SyncProvider: React.FC = ({ children }) => {
     saveSyncEntries();
   }, [syncEntries]);
 
-  //////////////////////////////////////////// 
-  //      CRUD Functions (Atomic)
-  ////////////////////////////////////////////
-
-
-  function atomicAddEntry(
-    entries: SyncEntry[],
-    videoPath: string,
-    params: Record<string, any>,
-    leafConfig: Record<string, any>
-  ): {allEntries: SyncEntry[], newEntry: SyncEntry| null} {
-    
-    const id = videoPath.split('/').pop();
-    if (!id) return {allEntries: entries, newEntry: null};
-    if (entries.some((entry) => entry.id === id)) return {allEntries: entries, newEntry: null}; // Avoid duplicates
+  // Fetch Inference Poller
+  useEffect(() => {
+    if (inferenceQueueRef.current.size === 0) return;
   
-    const newEntry: SyncEntry = {
-      id,
-      videoPath,
-      params,
-      leafConfig,
-      videoUploadStatus: 'uploading',
-      paramUploadStatus: 'new',
-      inferenceStatus: 'new',
+    let cancelled = false;
+  
+    const poll = async () => {
+      while (!cancelled && inferenceQueueRef.current.size > 0) {
+        const queueItems = Array.from(
+          inferenceQueueRef.current.values()
+        );
+  
+        await Promise.all(
+          queueItems.map(async ({ id, setSyncResult }) => {
+            const entry = syncEntriesRef.current.find(
+              e => e.id === id
+            );
+  
+            if (!entry) return;
+  
+            const updated = { ...entry };
+  
+            await inference(serverURL, updated, setSyncResult);
+  
+            setSyncEntries(prev => updateEntryById(prev, updated));
+  
+            const done =
+              updated.inferenceStatus === "completed" ||
+              updated.inferenceStatus === "failed";
+  
+            if (done) {
+              inferenceQueueRef.current.delete(id);
+              setInferenceQueueVersion(v => v + 1);
+            }
+          })
+        );
+  
+        console.log("Waiting 30 seconds before next poll...");
+        await new Promise(r => setTimeout(r, 30000));
+      }
     };
-
-    const allEntries = [...entries, newEntry];
-    return {allEntries, newEntry};
-  }
-
-  function atomicUpdateEntry(
-    entries: SyncEntry[],
-    id: string,
-    updates: Partial<SyncEntry>
-  ): {allEntries: SyncEntry[], updatedEntry: SyncEntry | null, changed: Boolean} {
-    
-    let changed = false;
-    let updatedEntry = null;
-    
-    const allEntries = entries.map((entry) => {
-      if (entry.id !== id) return entry;
   
-      let newEntry = { ...entry, ...updates };
-      updatedEntry = newEntry;
+    poll();
   
-      // If videoPath changed
-      if (updates.videoPath && updates.videoPath !== entry.videoPath) {
-        changed = true;
-        newEntry.id = updates.videoPath.split('/').pop() || entry.id;
-        newEntry.videoUploadStatus = 'uploading';
-        newEntry.videoUploadResponse = undefined;
-        newEntry.inferenceStatus = 'new';
-        newEntry.inferenceResponse = undefined;
-      }
+    return () => {
+      cancelled = true;
+    };
+  }, [inferenceQueueVersion, serverURL]);
+
   
-      // If params changed
-      if (updates.params && !_.isEqual(updates.params, entry.params)) {
-        changed = true;
-        newEntry.paramUploadStatus = 'new';
-        newEntry.paramUploadResponse = undefined;
-        newEntry.inferenceStatus = 'new';
-        newEntry.inferenceResponse = undefined;
-      }
-
-      //If leafConfig changed
-      if (updates.leafConfig && !_.isEqual(updates.leafConfig, entry.leafConfig)) {
-        changed = true;
-        newEntry.paramUploadStatus = 'new';
-        newEntry.paramUploadResponse = undefined;
-        newEntry.inferenceStatus = 'new';
-        newEntry.inferenceResponse = undefined;
-      }
-  
-      return newEntry;
-    });
-
-    return {allEntries, updatedEntry, changed};
-  }
-  
-  function atomicRemoveEntry(
-    entries: SyncEntry[],
-    id: string
-  ): SyncEntry[] {
-    return entries.filter((entry) => entry.id !== id);
-  }
-
-  function atomicRemoveDeprecatedEntries(
-    entries: SyncEntry[],
-    mediaItems: { path: string }[]
-  ): SyncEntry[] {
-    const mediaPaths = new Set(mediaItems.map((item) => item.path));
-    return entries.filter((entry) => mediaPaths.has(entry.videoPath));
-  }  
-
   //////////////////////////////////////////// 
   //      CRUD Functions (Async)
   ////////////////////////////////////////////
@@ -193,7 +166,7 @@ export const SyncProvider: React.FC = ({ children }) => {
 
 
   //////////////////////////////////////////// 
-  //            Upload Functions
+  //            Helper Functions
   ////////////////////////////////////////////
 
   function updateEntryById(
@@ -203,8 +176,26 @@ export const SyncProvider: React.FC = ({ children }) => {
     return entries.map(e => (e.id === updatedEntry.id ? updatedEntry : e));
   }  
 
+  const enqueueInference = (
+    entry: SyncEntry,
+    setSyncResult: (message: string) => void
+  ) => {
+    const alreadyQueued = inferenceQueueRef.current.has(entry.id);
+  
+    if (alreadyQueued) {
+      return;
+    }
+  
+    inferenceQueueRef.current.set(entry.id, {
+      id: entry.id,
+      setSyncResult
+    });
+  
+    setInferenceQueueVersion(v => v + 1);
+  };
+
   //////////////////////////////////////////// 
-  //            Helper Functions
+  //            Upload Functions
   ////////////////////////////////////////////
   
   const uploadVideo = async (
@@ -314,6 +305,8 @@ export const SyncProvider: React.FC = ({ children }) => {
       }
   
       setSyncEntries(prev => updateEntryById(prev, updated));
+
+      enqueueInference(updated, setSyncResult);
     }, 3);
 
     return entries;
