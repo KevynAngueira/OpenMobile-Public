@@ -12,6 +12,7 @@ import DevOptionsSection from '../components/DevModesSection';
 import DevServerSection from '../components/DevServerSection';
 import DevResetSection from '../components/DevResetSection';
 import DevVisualizeSection from '../components/DevVisualizeSection';
+import DevCollectorSection from '../components/DevCollectorSection';
 
 export default function DevPanel() {
   if (!canUseDevFlags) return null;
@@ -26,6 +27,7 @@ export default function DevPanel() {
       <DevOptionsSection/>
       <DevFlagsSection/>
       <DevExtractorSection/>
+      <DevCollectorSection/>
       
     </ScrollView>
   );

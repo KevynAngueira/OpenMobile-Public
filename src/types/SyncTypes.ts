@@ -20,6 +20,7 @@ export interface ManifestSyncEntry {
   endpoint: string;
   artifact: any;
   manifestConfig: Record<string, string>;
+  last_updated: string;
 }
 
 export interface PlantArtifact {
