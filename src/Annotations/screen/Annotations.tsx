@@ -23,7 +23,7 @@ import { createPlant, updatePlant, deletePlant, attachChildLeaf, removeChildLeaf
 import { createField, updateField, deleteField, attachChildPlant, removeChildPlant } from '../services/FieldHandler';
 
 import { useSync } from '../../Sync/context/SyncContext';
-import useHandleSync from '../services/AnnotationActions';
+import { useAnnotationSync } from '../../Sync/hooks/useAnnotationSyncs';
 
 import { useAnnotationMaps } from '../../hooks/useAnnotationMaps';
 import { useSyncMaps } from '../../hooks/useSyncMaps';
@@ -42,7 +42,7 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
   const { plantAnnotations, setPlantAnnotations, selectedPlantAnnotation, setSelectedPlantAnnotation } = usePlantAnnotations();
   const { fieldAnnotations, setFieldAnnotations, selectedFieldAnnotation, setSelectedFieldAnnotation } = useFieldAnnotations();
 
-  const { listToLeaves, listToPlants, getHierarchyName } = useAnnotationMaps(fieldAnnotations, plantAnnotations, leafAnnotations);
+  const { listToLeaves, listToPlants, getHierarchyName, leafMap } = useAnnotationMaps(fieldAnnotations, plantAnnotations, leafAnnotations);
 
   const [leafModalVisible, setLeafModalVisible] = useState(false);
   const [plantModalVisible, setPlantModalVisible] = useState(false);
@@ -51,7 +51,7 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
   const { syncEntries, removeSyncEntry } = useSync();
   const { videoToSync } = useSyncMaps(syncEntries);
 
-  const { handleSync, handleSyncField, handleSyncPlant } = useHandleSync(getHierarchyName);
+  const { handleSync, handleSyncField, handleSyncPlant } = useAnnotationSync(getHierarchyName, leafMap);
   const [syncResult, setSyncResult] = useState<string | null>(null);
  
   const [viewMode, setViewMode] = useState<'field' | 'plant' | 'leaf'>('field');

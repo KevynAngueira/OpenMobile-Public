@@ -2,29 +2,17 @@ import React, { createContext, useContext, useState } from 'react';
 import { FieldAnnotation, PlantAnnotation, LeafAnnotation } from '../../types/AnnotationTypes';
 import { apiFetch } from '../../network/ApiFetch';
 import { processWithConcurrency } from '../../utils/AsyncQueue';
+import { FieldArtifact, PlantArtifact, ManifestSyncEntry } from '../../types/SyncTypes'
 
-interface ManifestSyncContextType {
+
+export interface ManifestSyncContextType {
   syncAllManifest: (
     serverURL: string,
-    fields: FieldAnnotation[],
-    plants: PlantAnnotation[],
-    leaves: LeafAnnotation[]
+    manifestEntries: ManifestSyncEntry[]
   ) => Promise<void>;
   lastResult: string | null;
 }
 
-export interface PlantArtifact {
-  id: string;
-  name: string;
-  fieldId: string;
-  leaves: string[];
-}
-
-export interface FieldArtifact {
-  id: string;
-  name: string;
-  plants: string[];
-}
 
 const ManifestSyncContext = createContext<ManifestSyncContextType | undefined>(undefined);
 
@@ -40,144 +28,44 @@ export const ManifestSyncProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [lastResult, setLastResult] = useState<string | null>(null);
 
   ////////////////////////////////////////////
-  // BUILD ARTIFACTS
-  ////////////////////////////////////////////
-  
-  function buildPlantArtifact(
-    plant: PlantAnnotation,
-    leaves: LeafAnnotation[]
-  ): PlantArtifact {
-  
-    const leafIds = leaves
-      .filter((leaf) => leaf.parentPlant === plant.id)
-      .map((leaf) => {
-        if (!leaf.video) return null;
-  
-        const filename = leaf.video.split('/').pop();
-        return filename?.replace(/\.[^/.]+$/, "");
-      })
-      .filter(Boolean) as string[];
-  
-    return {
-      id: plant.id,
-      name: plant.name,
-      fieldId: plant.parentField,
-      leaves: leafIds,
-    };
-  }
-  
-  function buildFieldArtifact(
-    field: FieldAnnotation,
-    plantArtifacts: PlantArtifact[]
-  ): FieldArtifact {
-    const plantIds = plantArtifacts
-      .filter((plant) => plant.fieldId === field.id)
-      .map((plant) => plant.id);
-  
-    return {
-      id: field.id,
-      name: field.name,
-      plants: plantIds,
-    };
-  }
-
-  ////////////////////////////////////////////
-  // UPLOAD ARTIFACTS
-  ////////////////////////////////////////////
-
-  async function uploadPlantArtifact(
-    serverURL: string,
-    artifact: PlantArtifact
-  ) {
-    const res = await apiFetch(`${serverURL}/send/manifest/plant`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(artifact),
-    });
-  
-    if (!res.ok) {
-      throw new Error(`Failed to upload plant ${artifact.id}`);
-    }
-  }
-
-  async function uploadFieldArtifact(
-    serverURL: string,
-    artifact: FieldArtifact
-  ) {
-    const res = await apiFetch(`${serverURL}/send/manifest/field`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(artifact),
-    });
-  
-    if (!res.ok) {
-      throw new Error(`Failed to upload field ${artifact.id}`);
-    }
-  }
-
-  ////////////////////////////////////////////
   // ORCHESTRATE UPLOADS
   ////////////////////////////////////////////
   
-  async function uploadPlantManifest(
-    serverURL: string,
-    plants: PlantAnnotation[],
-    leaves: LeafAnnotation[]
-  ) {
-    await processWithConcurrency(plants, async (artifact) => {
-      try {
-        await uploadPlantArtifact(serverURL, artifact);
-      } catch (err) {
-        console.error(`Plant ${artifact.id} failed:`, err);
-      }
-    }, 3);
-  }
-
-  async function uploadFieldManifest(
-    serverURL: string,
-    fields: FieldAnnotation[],
-    plantArtifacts: PlantArtifact[]
-  ) {
-    await processWithConcurrency(fields, async (field) => {
-      try {
-        const artifact = buildFieldArtifact(field, plantArtifacts);
-        await uploadFieldArtifact(serverURL, artifact);
-      } catch (err) {
-        console.error(`Field ${field.id} failed:`, err);
-      }
-    }, 2);
-  }
-
   const syncAllManifest = async (
     serverURL: string,
-    fields: FieldAnnotation[],
-    plants: PlantAnnotation[],
-    leaves: LeafAnnotation[]
+    manifestEntries: ManifestSyncEntry[]
   ) => {
-    // Build all plant artifacts once
-    const plantArtifacts = plants.map((plant) =>
-      buildPlantArtifact(plant, leaves)
-    );
+    await processWithConcurrency(
+      manifestEntries,
+      async (entry) => {
+        try {
+          const res = await apiFetch(
+            `${serverURL}${entry.endpoint}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(entry.artifact)
+            },
+            entry.manifestConfig
+          );
   
-    // ✅ Queue plant uploads
-    await processWithConcurrency(plantArtifacts, async (artifact) => {
-      try {
-        await uploadPlantArtifact(serverURL, artifact);
-      } catch (err) {
-        console.error(`Plant ${artifact.id} failed:`, err);
-      }
-    }, 3);
-
-    // ✅ Queue field uploads (after plants complete)
-    await processWithConcurrency(fields, async (field) => {
-      try {
-        const artifact = buildFieldArtifact(field, plantArtifacts);
-        await uploadFieldArtifact(serverURL, artifact);
-      } catch (err) {
-        console.error(`Field ${field.id} failed:`, err);
-      }
-    }, 2);
-  }
+          if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(errorText);
+          }
+  
+        } catch (err) {
+          console.error(
+            `Manifest ${entry.artifact.id} failed:`,
+            err
+          );
+        }
+      },
+      3
+    );
+  };
   
   
   return (
