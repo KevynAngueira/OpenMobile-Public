@@ -12,12 +12,12 @@ type DevFlagsType = {
 type Listener = (flags: DevFlagsType) => void;
 
 const flags: DevFlagsType = {
+  useDevStorage: false,
   useLeafMatching: true,
   toggleHealthy: true,
-  useDevStorage: true,
   bypassVideoValidation: true,
   allowResetEntries: true,
-  altOriginalArea: false,
+  altOriginalArea: true,
 };
 
 const listeners = new Set<Listener>();
