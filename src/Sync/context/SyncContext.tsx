@@ -295,14 +295,14 @@ export const SyncProvider: React.FC = ({ children }) => {
 
       let updated = { ...entry };
 
+      if (!paramsAttached) {
+        await uploadParams(serverURL, updated, setSyncResult);
+      }
+
       if (!videoAttached) {
         await uploadVideo(serverURL, updated, setSyncResult);
       }
 
-      if (!paramsAttached) {
-        await uploadParams(serverURL, updated, setSyncResult);
-      }
-  
       setSyncEntries(prev => updateEntryById(prev, updated));
 
       enqueueInference(updated, setSyncResult);
@@ -388,17 +388,6 @@ export const SyncProvider: React.FC = ({ children }) => {
     const inferTargets = entries.filter(e => toInferIds.has(e.id));
 
     await processWithConcurrency(inferTargets, async (entry) => {
-
-      const ready =
-        entry.videoUploadStatus === 'uploaded' &&
-        entry.paramUploadStatus === 'uploaded';
-  
-      if (!ready) {
-        console.warn(`Warning: Skipping inference: ${entry.id}`);
-        setSyncResult(`Warning: skipping inference ${entry.id}, video or params not uploaded`);
-        setTimeout(() => setSyncResult(null), 3000);
-        return;
-      };
   
       let updated = { ...entry };
   
@@ -472,6 +461,40 @@ export const SyncProvider: React.FC = ({ children }) => {
     }
     setSyncEntries(updatedEntries);
     console.log(updatedEntries);
+
+    // Step 2.5: Reconcile failed states
+    console.log('Reconciling failed sync states...');
+
+    for (const entry of updatedEntries) {
+
+      const uploadFailed =
+        entry.videoUploadStatus === 'failed' ||
+        entry.paramUploadStatus === 'failed';
+
+      const inferenceFailed =
+        entry.inferenceStatus === 'failed';
+
+      const inferenceWaiting =
+        entry.inferenceStatus === 'waiting';
+
+      // Failed uploads must go back through upload pipeline
+      if (uploadFailed) {
+        uploadList.add(entry.id);
+
+        console.log(`REQUEUE UPLOAD ${entry.id}`);
+
+        // If upload failed, inference must rerun later
+        inferenceList.delete(entry.id);
+        continue;
+      }
+
+      // Failed/waiting inference should retry inference
+      if (inferenceFailed || inferenceWaiting) {
+        inferenceList.add(entry.id);
+
+        console.log(`REQUEUE INFERENCE ${entry.id}`);
+      }
+    }
 
     if (updatedEntries.length === 0) {
       setSyncResult("No videos attached to annotations.");
