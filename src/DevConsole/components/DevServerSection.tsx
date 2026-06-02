@@ -14,8 +14,8 @@ export default function DevServerSection() {
   
     function applyDefault() {
       DevServerConfig.useDefault();
-      setIP(DevServerConfig.getIP());
-      setPort(DevServerConfig.getPort());
+      setIP("");
+      setPort("");
       setIsCustom(false);
   
       Alert.alert(
