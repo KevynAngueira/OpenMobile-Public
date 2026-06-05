@@ -1,36 +1,35 @@
 // DevServerConfig.ts
 
-const DEFAULT_IP = "149.165.170.208";
-const DEFAULT_PORT = "5000";
+const DEFAULT_URL = "https://demo.rainhail.com/leafscan/";
 
-let serverIP = DEFAULT_IP;
-let serverPort = DEFAULT_PORT;
+let customIP: string | null = null;
+let customPort: string | null = null;
 
 export const DevServerConfig = {
   setIP: (ip: string) => {
-    serverIP = ip;
+    customIP = ip;
   },
 
   setPort: (port: string) => {
-    serverPort = port;
+    customPort = port;
   },
 
-  getIP: () => serverIP,
-  getPort: () => serverPort,
+  getIP: () => customIP ?? "",
+  getPort: () => customPort ?? "",
 
   getBaseURL: () => {
-    return `http://${serverIP}:${serverPort}`;
+    if (customIP && customPort) {
+      return `http://${customIP}:${customPort}`;
+    }
+    return DEFAULT_URL;
   },
 
   useDefault: () => {
-    serverIP = DEFAULT_IP;
-    serverPort = DEFAULT_PORT;
+    customIP = null;
+    customPort = null;
   },
 
-  isUsingDefault: () => {
-    return serverIP === DEFAULT_IP && serverPort === DEFAULT_PORT;
-  },
+  isUsingDefault: () => customIP === null && customPort === null,
 
-  getDefaultIP: () => DEFAULT_IP,
-  getDefaultPort: () => DEFAULT_PORT,
+  getDefaultURL: () => DEFAULT_URL,
 };

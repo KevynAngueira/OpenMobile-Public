@@ -4,7 +4,7 @@ import { View, ScrollView, Text, StyleSheet, TouchableOpacity } from 'react-nati
 import Ionicons from '@react-native-vector-icons/material-icons';
 import Video from 'react-native-video';
 
-import { LeafStatusIndicator } from './LeafStatusIndicator';
+import { getLeafSyncDisplayState, LeafStatusIndicator } from './LeafStatusIndicator';
 import { getLeafSyncUIState, LeafSyncUIConfig } from '../utils/LeafSyncUIState';
 import { LeafAnnotation, LeafCallbacks } from '../../types/AnnotationTypes';
 import { DevFlags } from '../../DevConsole/configs/DevFlagsConfig'
@@ -40,9 +40,8 @@ const LeafAnnotationList = (props: LeafAnnotationListProps) => {
         .sort((a, b) => Number(a.leafNumber) - Number(b.leafNumber))
         .map((leaf) => {
 
-        const syncEntry = leafCallbacks.getSyncEntry(leaf.video);
-        const uiState = getLeafSyncUIState(leaf, syncEntry);
-        const config = LeafSyncUIConfig[uiState];
+          const syncEntry = leafCallbacks.getSyncEntry(leaf.video);
+          const displayState = getLeafSyncDisplayState(leaf, syncEntry);
         
         return (
           <View key={leaf.id} style={styles.annotationContainer}>
@@ -51,10 +50,20 @@ const LeafAnnotationList = (props: LeafAnnotationListProps) => {
               style={styles.annotationHeader}
             >
               <Text style={styles.annotationTitle}>{leafCallbacks.getName(leaf?.id)}</Text>
-              <LeafStatusIndicator
-                  annotation={leaf}
-                  entry={syncEntry}
-                />
+              <LeafStatusIndicator displayState={displayState}/>
+              
+              {DevFlags.isEnabled("toggleHealthy") && 
+                <TouchableOpacity
+                    onPress={() => leafCallbacks.onToggleHealthy(leaf)}
+                    style={styles.healthyToggle}
+                  >
+                    <Ionicons
+                      name={leaf.isHealthy ? "check-circle" : "radio-button-unchecked"}
+                      size={22}
+                      color={leaf.isHealthy ? "#4CAF50" : "#999"}
+                    />
+                </TouchableOpacity>
+              }
             </TouchableOpacity>
 
             {expandedAnnotation?.id === leaf.id && (
@@ -169,9 +178,9 @@ const LeafAnnotationList = (props: LeafAnnotationListProps) => {
                         <Text style={styles.tabTitle}>Results</Text>
                         <View style={styles.placeholderContainer}>
                           <Text style={styles.placeholderText}>
-                            {config.label}
+                            {displayState.config.label}
                           </Text>
-                          {config.showResults && syncEntry?.inferenceResponse && (
+                          {displayState.config.showResults && syncEntry?.inferenceResponse && (
                             <Text style={styles.resultValue}>{JSON.stringify(syncEntry.inferenceResponse)}</Text>
                           )}
                         </View>
@@ -235,6 +244,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#4CAF50',
   },
+  
   annotationTitle: {
     fontSize: 18,
     flex: 1,
@@ -401,6 +411,12 @@ const styles = StyleSheet.create({
     flex: 1,
     color: "#222",
     fontSize: 18,
+  },
+
+  //isHealthy toggle
+  healthyToggle: {
+    marginLeft: 8,
+    padding: 4,
   },
 });
 

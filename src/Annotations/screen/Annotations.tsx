@@ -23,12 +23,13 @@ import { createPlant, updatePlant, deletePlant, attachChildLeaf, removeChildLeaf
 import { createField, updateField, deleteField, attachChildPlant, removeChildPlant } from '../services/FieldHandler';
 
 import { useSync } from '../../Sync/context/SyncContext';
-import useHandleSync from '../services/AnnotationActions';
+import { useAnnotationSync } from '../../Sync/hooks/useAnnotationSyncs';
 
 import { useAnnotationMaps } from '../../hooks/useAnnotationMaps';
 import { useSyncMaps } from '../../hooks/useSyncMaps';
 
-import { canUseDevFlags } from '../../DevConsole/configs/DevFlagsConfig';
+import { canUseDevFlags, DevFlags } from '../../DevConsole/configs/DevFlagsConfig';
+import { DevModes } from '../../DevConsole/configs/DevModesConfig';
 import { resetEntry } from '../../network/ResetEntry';
 
 interface AnnotationsProps {
@@ -41,7 +42,7 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
   const { plantAnnotations, setPlantAnnotations, selectedPlantAnnotation, setSelectedPlantAnnotation } = usePlantAnnotations();
   const { fieldAnnotations, setFieldAnnotations, selectedFieldAnnotation, setSelectedFieldAnnotation } = useFieldAnnotations();
 
-  const { listToLeaves, listToPlants, getHierarchyName } = useAnnotationMaps(fieldAnnotations, plantAnnotations, leafAnnotations);
+  const { listToLeaves, listToPlants, getHierarchyName, leafMap } = useAnnotationMaps(fieldAnnotations, plantAnnotations, leafAnnotations);
 
   const [leafModalVisible, setLeafModalVisible] = useState(false);
   const [plantModalVisible, setPlantModalVisible] = useState(false);
@@ -50,12 +51,15 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
   const { syncEntries, removeSyncEntry } = useSync();
   const { videoToSync } = useSyncMaps(syncEntries);
 
-  const { handleSync, handleSyncPlant } = useHandleSync(getHierarchyName);
+  const { handleSync, handleSyncField, handleSyncPlant } = useAnnotationSync(getHierarchyName, leafMap);
   const [syncResult, setSyncResult] = useState<string | null>(null);
  
   const [viewMode, setViewMode] = useState<'field' | 'plant' | 'leaf'>('field');
 
   const [selectedVideoPath, setSelectedVideoPath] = useState<string | null>(null);
+
+  const [devFlags, setDevFlags] = useState(DevFlags.get());
+  const [devModes, setDevModes] = useState(DevModes.get());
 
   const plantsForSelectedField = React.useMemo(() => {
     if (!selectedFieldAnnotation) return [];
@@ -145,6 +149,16 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
 
     setPlantModalVisible(false);
     return plantId;
+  };
+
+  // Toggles the isHealthy param
+  const handleToggleHealthy = (leaf: LeafAnnotation) => {
+    const updatedLeaf = {
+      ...leaf,
+      isHealthy: !leaf.isHealthy
+    };
+  
+    updateLeaf(setLeafAnnotations, updatedLeaf);
   };
 
   // Edits a plant annotation
@@ -239,11 +253,30 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
     navigation.setParams({ selectedVideo: undefined });
   }, [route.params?.selectedVideo]);
 
+  useEffect(() => {
+    const unsubscribe_flags = DevFlags.subscribe((updatedFlags) => {
+      setDevFlags(updatedFlags);
+    });
+
+    return unsubscribe_flags;
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe_modes = DevModes.subscribe((updatedModes) => {
+      setDevModes(updatedModes);
+    });
+
+    return unsubscribe_modes;
+  }, []);
+
+  // Annotation Callback
+
   const leafCallbacks : LeafCallbacks = {
     syncEntries: syncEntries,
     onAttachVideo: handleAttachVideo,
     onEditButton: handleEditLeafAnnotation,
     onDeleteAnnotation: handleDeleteLeafAnnotation,
+    onToggleHealthy: handleToggleHealthy,
     getSyncEntry: videoToSync,
     getName: (leafId) => getHierarchyName(leafId, "leaf", viewMode),
     resetEntry: (leaf) => resetEntry(leaf, removeSyncEntry),
@@ -411,14 +444,43 @@ const Annotations: React.FC<AnnotationsProps> = ({ route, navigation }) =>  {
         )}
 
         {/* Sync Button */}
-        {/*
-        <TouchableOpacity
-          style={styles.syncButton}
-          onPress={() => handleSync(fieldAnnotations, plantAnnotations, leafAnnotations, setSyncResult)}
-        >
-          <Text style={styles.syncButtonText}>Sync</Text>
-        </TouchableOpacity>
-        */}
+        {devModes.syncMode == "all"  && (
+          <TouchableOpacity
+            style={styles.syncButton}
+            onPress={() =>
+              handleSync(
+                fieldAnnotations,
+                plantAnnotations,
+                leafAnnotations,
+                setSyncResult
+              )
+            }
+          >
+            <Text style={styles.syncButtonText}>Sync All</Text>
+          </TouchableOpacity>
+        )}
+
+        {devModes.syncMode == "field"  && (
+          <TouchableOpacity
+            style={styles.syncButton}
+            onPress={() => {
+              if (!selectedFieldAnnotation?.id) {
+                setSyncResult("No field selected");
+                return;
+              }
+            
+              handleSyncField(
+                selectedFieldAnnotation.id,
+                fieldAnnotations,
+                plantAnnotations,
+                leafAnnotations,
+                setSyncResult
+              );
+            }}
+          >
+            <Text style={styles.syncButtonText}>Sync Field</Text>
+          </TouchableOpacity>
+        )}
       </View>
       
     </SafeAreaView>

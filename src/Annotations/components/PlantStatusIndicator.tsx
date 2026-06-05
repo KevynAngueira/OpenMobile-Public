@@ -1,35 +1,94 @@
 import React from 'react';
 import { Text } from 'react-native';
 import Ionicons from '@react-native-vector-icons/material-icons';
+import { LeafAnnotation } from '../../types/AnnotationTypes';
 import { SyncEntry } from '../../types/SyncTypes';
+import {
+  getLeafSyncUIState,
+  LeafSyncUIConfig,
+  LeafSyncSeverity,
+  LeafSyncUIState
+} from '../utils/LeafSyncUIState';
+import { getDefoliationValue } from '../utils/DefoliationValues';
 
-export const PlantStatusIndicator = ({ entries }: {
-  entries: SyncEntry[];
-}) => {
-  if (entries.length === 0) {
-    return <Ionicons name="circle" size={14} color="orange" />;
+type LeafSyncMapEntry = {
+  annotation: LeafAnnotation;
+  entry?: SyncEntry;
+};
+
+export const getPlantSyncDisplayState = (
+  leafSyncMap: LeafSyncMapEntry[]
+) => {
+  if (!leafSyncMap.length) {
+    const uiState: LeafSyncUIState = 'incomplete';
+
+    return {
+      uiState,
+      config: LeafSyncUIConfig[uiState],
+      avgDefoliation: 0,
+      isCompleted: false,
+    };
   }
 
-  const statuses = entries.map(e => e.inferenceStatus);
+  const leafStates = leafSyncMap.map(({ annotation, entry }) =>
+    getLeafSyncUIState(annotation, entry)
+  );
 
-  const hasWaiting = statuses.some(s => s === "waiting" || s === "pending");
-  const hasRunning = statuses.some(s => s === "running");
-  const allCompleted = statuses.every(s => s === "completed");
+  const lowestState = leafStates.reduce((lowest, current) =>
+    LeafSyncSeverity[current] < LeafSyncSeverity[lowest]
+      ? current
+      : lowest
+  );
 
-  if (hasWaiting) return <Ionicons name="close" size={20} color="red" />;
-  if (hasRunning) return <Ionicons name="sync" size={20} color="dodgerblue" />;
+  const completedLeaves = leafSyncMap.filter(
+    ({ annotation, entry }) =>
+      getLeafSyncUIState(annotation, entry) === 'completed'
+  );
 
-  if (allCompleted) {
-    const values = entries
-      .map(e => e.inferenceResponse?.results?.defoliation)
-      .filter(v => typeof v === "number");
-
-    const avg = values.length > 0
-      ? Math.round(values.reduce((a, b) => a + b, 0) / values.length)
+  const avgDefoliation =
+    completedLeaves.length > 0
+      ? completedLeaves.reduce((sum, { entry }) => {
+          return (
+            sum +
+            getDefoliationValue(entry)
+          );
+        }, 0) / completedLeaves.length
       : 0;
 
-    return <Text style={{ fontSize: 16, color: 'green' }}>{avg}%</Text>;
+  return {
+    uiState: lowestState,
+    config: LeafSyncUIConfig[lowestState],
+    avgDefoliation,
+    isCompleted: lowestState === 'completed',
+  };
+};
+
+
+export const PlantStatusIndicator = ({
+  displayState,
+}: {
+  displayState: ReturnType<typeof getPlantSyncDisplayState>;
+}) => {
+  const { config, isCompleted, avgDefoliation } = displayState;
+
+  if (isCompleted) {
+    return (
+      <Text
+        style={{
+          fontSize: 16,
+          color: config.color,
+        }}
+      >
+        {Math.round(avgDefoliation)}%
+      </Text>
+    );
   }
 
-  return <Ionicons name="circle" size={14} color="orange" />;
+  return (
+    <Ionicons
+      name={config.icon!}
+      size={18}
+      color={config.color}
+    />
+  );
 };
